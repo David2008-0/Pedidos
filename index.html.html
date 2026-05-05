@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos a Proveedores</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f7;color:#1d1d1f;min-height:100vh;}
+.app{max-width:680px;margin:0 auto;padding:1rem;}
+.screen{display:none;}.screen.active{display:block;}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid #e0e0e5;}
+.topbar-title{font-size:17px;font-weight:600;color:#1d1d1f;flex:1;}
+.topbar-sub{font-size:12px;color:#6e6e73;margin-top:2px;}
+.back-btn{background:none;border:none;cursor:pointer;color:#6e6e73;font-size:22px;padding:0 4px;line-height:1;}
+.card{background:#fff;border:1px solid #e0e0e5;border-radius:14px;padding:1.25rem;margin-bottom:.75rem;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.prov-card{cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color .15s;}
+.prov-card:hover{border-color:#aaa;}
+.prov-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0;}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;margin-left:4px;}
+.badge-ok{background:#e8f5e0;color:#2e7d32;}
+.badge-warn{background:#fff3e0;color:#e65100;}
+.badge-danger{background:#fce4e4;color:#b71c1c;}
+.badge-gray{background:#f0f0f5;color:#6e6e73;}
+.section-label{font-size:11px;color:#6e6e73;text-transform:uppercase;letter-spacing:.07em;margin:1.25rem 0 .5rem;}
+.ref-row{padding:14px 0;border-bottom:1px solid #f0f0f5;}
+.ref-row:last-child{border-bottom:none;}
+.calc-row{display:flex;justify-content:space-between;align-items:flex-start;padding:11px 0;border-bottom:1px solid #f0f0f5;font-size:14px;}
+.calc-row:last-child{border-bottom:none;}
+.btn-main{background:#1d1d1f;color:#fff;border:none;border-radius:12px;padding:13px 20px;font-size:15px;font-weight:500;cursor:pointer;width:100%;margin-top:1rem;transition:opacity .15s;}
+.btn-main:hover{opacity:.85;}
+.btn-sec{background:transparent;color:#1d1d1f;border:1px solid #d0d0d5;border-radius:12px;padding:11px 16px;font-size:14px;cursor:pointer;width:100%;margin-top:.5rem;transition:background .15s;}
+.btn-sec:hover{background:#f5f5f7;}
+.upload-zone{border:2px dashed #d0d0d5;border-radius:14px;padding:2rem;text-align:center;cursor:pointer;background:#fafafa;transition:border-color .15s;}
+.upload-zone:hover{border-color:#aaa;}
+.alert{border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:.75rem;line-height:1.5;}
+.alert-warn{background:#fff3e0;color:#7a3800;border:1px solid #ffcc80;}
+.alert-ok{background:#e8f5e0;color:#1b5e20;border:1px solid #a5d6a7;}
+.alert-info{background:#e3f2fd;color:#0d47a1;border:1px solid #90caf9;}
+.alert-danger{background:#fce4e4;color:#7b1818;border:1px solid #ef9a9a;}
+.tabs{display:flex;border:1px solid #e0e0e5;border-radius:12px;overflow:hidden;margin-bottom:1rem;background:#f5f5f7;}
+.tab{flex:1;padding:9px;font-size:13px;border:none;background:transparent;cursor:pointer;color:#6e6e73;transition:all .15s;}
+.tab.active{background:#1d1d1f;color:#fff;border-radius:10px;margin:3px;}
+.art-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f5;font-size:13px;}
+.art-item:last-child{border-bottom:none;}
+.dot-verde{width:8px;height:8px;border-radius:50%;background:#4caf50;flex-shrink:0;}
+.dot-naranja{width:8px;height:8px;border-radius:50%;background:#ff9800;flex-shrink:0;}
+.season-chip{display:inline-block;font-size:11px;padding:4px 12px;border-radius:20px;background:#e3f2fd;color:#0d47a1;font-weight:500;margin-bottom:10px;}
+.stock-inputs{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.stock-block{display:flex;align-items:center;gap:5px;}
+.stock-block input{width:70px;text-align:center;border:1px solid #d0d0d5;border-radius:8px;padding:6px 4px;font-size:14px;}
+.stock-block label{font-size:12px;color:#6e6e73;}
+input[type=text],input[type=number],select,textarea{border:1px solid #d0d0d5;border-radius:8px;padding:8px 10px;font-size:14px;width:100%;background:#fff;color:#1d1d1f;font-family:inherit;}
+textarea{resize:vertical;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#1d1d1f;}
+.formula-box{background:#f5f5f7;border-radius:10px;padding:10px 14px;font-size:12px;color:#6e6e73;margin-bottom:12px;line-height:1.8;}
+.pedido-header{background:#e3f2fd;border-radius:14px;padding:1.25rem;margin-bottom:1rem;}
+.confirm-icon{width:60px;height:60px;border-radius:50%;background:#e8f5e0;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:24px;color:#2e7d32;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="screen active" id="s-home">
+  <div class="topbar">
+    <div style="flex:1;"><div class="topbar-title">Pedidos a proveedores</div><div class="topbar-sub" id="home-sub">Cargando...</div></div>
+    <button class="btn-sec" style="width:auto;margin:0;padding:7px 14px;" onclick="go('s-config')">Configurar</button>
+  </div>
+  <div class="season-chip" id="home-season"></div>
+  <div id="home-noventas" class="alert alert-warn" style="display:none;">Sube los Excel de ventas en "Configurar › Ventas".</div>
+  <div class="section-label">Selecciona un proveedor</div>
+  <div id="home-provs"></div>
+</div>
+
+<div class="screen" id="s-config">
+  <div class="topbar">
+    <button class="back-btn" onclick="go('s-home')">&#8592;</button>
+    <div class="topbar-title">Configuración</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tbtn-provs" onclick="switchTab('provs')">Proveedores</button>
+    <button class="tab" id="tbtn-ventas" onclick="switchTab('ventas')">Ventas</button>
+  </div>
+  <div id="tab-provs">
+    <div class="card" style="cursor:default;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:12px;">Nuevo proveedor</div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">Nombre del proveedor</label>
+        <input type="text" id="inp-pname" placeholder="Ej: Continental S.L.">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">Días que tarda en servir</label>
+          <input type="number" id="inp-plead" placeholder="Ej: 5" min="1">
+          <div style="font-size:11px;color:#6e6e73;margin-top:3px;">Solo para avisar a tiempo</div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">¿Cada cuántos días viene?</label>
+          <input type="number" id="inp-pfrecuencia" placeholder="Ej: 7" min="1">
+          <div style="font-size:11px;color:#6e6e73;margin-top:3px;">7 = semanal · 14 = quincenal</div>
+        </div>
+      </div>
+      <div class="formula-box" id="formula-preview">Rellena los días para ver cómo se calculará el pedido.</div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">Artículos — uno por línea</label>
+        <div style="font-size:11px;color:#6e6e73;margin-bottom:6px;">Formato: <code style="background:#f0f0f5;padding:1px 5px;border-radius:4px;">NOMBRE | unidades por caja</code> — pon 1 si no va en cajas</div>
+        <textarea id="inp-prefs" rows="5" placeholder="LEJIA AMARILLA 5L  C/4 | 4&#10;FILM ESTIRABLE MANUAL 23MIC | 6&#10;CINTA EMBALAR | 1"></textarea>
+      </div>
+      <button class="btn-main" onclick="addProv()">Guardar proveedor</button>
+    </div>
+    <div class="section-label">Proveedores guardados</div>
+    <div id="cfg-prov-list"></div>
+  </div>
+  <div id="tab-ventas" style="display:none;">
+    <div class="alert alert-info">Sube un Excel por cada artículo. La app lee el nombre y fechas automáticamente.<br><br><strong>Prioridad de datos:</strong><br>1️⃣ Mismos 2 meses del año pasado<br>2️⃣ Últimos 3 meses del archivo<br>3️⃣ Período completo del archivo</div>
+    <div class="upload-zone" onclick="document.getElementById('f-ventas').click()">
+      <input type="file" id="f-ventas" accept=".xlsx,.xls" multiple onchange="handleFiles(this)">
+      <div style="font-size:28px;margin-bottom:.5rem;">📂</div>
+      <div style="font-size:14px;font-weight:600;color:#1d1d1f;margin-bottom:4px;">Subir Excel de ventas</div>
+      <div style="font-size:12px;color:#6e6e73;">Puedes subir varios a la vez</div>
+    </div>
+    <div id="upload-log" style="margin-top:.75rem;"></div>
+    <div class="section-label">Artículos con ventas cargadas</div>
+    <div id="ventas-art-list"></div>
+    <button class="btn-sec" style="margin-top:.5rem;color:#b71c1c;border-color:#ef9a9a;" onclick="if(confirm('¿Borrar todas las ventas?')){ventasDB={};saveAll();renderVentasList();renderHome();}">Borrar todas las ventas</button>
+  </div>
+</div>
+
+<div class="screen" id="s-stock">
+  <div class="topbar">
+    <button class="back-btn" onclick="go('s-home')">&#8592;</button>
+    <div><div class="topbar-title" id="stock-pname"></div><div class="topbar-sub" id="stock-psub"></div></div>
+  </div>
+  <div class="card formula-box" style="cursor:default;">
+    <div style="font-size:12px;color:#6e6e73;margin-bottom:6px;">Cómo se calcula este pedido</div>
+    <div id="stock-formula" style="font-size:13px;color:#1d1d1f;line-height:1.9;"></div>
+  </div>
+  <div class="section-label">¿Cuánto hay ahora mismo en almacén?</div>
+  <div class="card" style="cursor:default;" id="stock-form"></div>
+  <button class="btn-main" onclick="calcular()">Calcular pedido</button>
+</div>
+
+<div class="screen" id="s-pedido">
+  <div class="topbar">
+    <button class="back-btn" onclick="go('s-stock')">&#8592;</button>
+    <div><div class="topbar-title" id="pedido-pname"></div><div class="topbar-sub">Pedido calculado</div></div>
+  </div>
+  <div id="pedido-body"></div>
+  <button class="btn-main" onclick="confirmar()">Confirmar pedido</button>
+  <button class="btn-sec" onclick="go('s-stock')">Ajustar stock</button>
+</div>
+
+<div class="screen" id="s-ok">
+  <div style="text-align:center;padding:2rem 1rem 1rem;">
+    <div class="confirm-icon">✓</div>
+    <div style="font-size:20px;font-weight:600;margin-bottom:.5rem;">Pedido registrado</div>
+    <div style="font-size:14px;color:#6e6e73;" id="ok-txt"></div>
+    <button class="btn-main" style="max-width:280px;margin:.75rem auto 0;" onclick="go('s-home')">Volver al inicio</button>
+  </div>
+  <div class="section-label">Historial reciente</div>
+  <div id="historial"></div>
+</div>
+
+</div>
+<script>
+const COLORS=[['#e3f2fd','#0d47a1'],['#e8f5e0','#1b5e20'],['#fff3e0','#7a3800'],['#fce4ec','#880e4f'],['#e8eaf6','#1a237e']];
+const MARGEN=1.15,VENTANA_DIAS=61,FALLBACK_DIAS=91,MIN_DIAS=5;
+let proveedores=JSON.parse(localStorage.getItem('prov_v8')||'[]');
+let ventasDB=JSON.parse(localStorage.getItem('ventas_v8')||'{}');
+let historialDB=JSON.parse(localStorage.getItem('hist_v8')||'[]');
+let currentProv=null,currentPedidoData=null;
+function saveAll(){localStorage.setItem('prov_v8',JSON.stringify(proveedores));localStorage.setItem('ventas_v8',JSON.stringify(ventasDB));localStorage.setItem('hist_v8',JSON.stringify(historialDB));}
+function norm(s){return String(s).toUpperCase().replace(/[\n\r\t]+/g,' ').replace(/\s+/g,' ').trim();}
+function buscarVentas(n){const r=norm(n);for(const k of Object.keys(ventasDB)){if(norm(k)===r)return{key:k,data:ventasDB[k]};}return null;}
+function parseDate(s){if(!s)return null;const m=String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(!m)return null;return new Date(parseInt(m[3]),parseInt(m[2])-1,parseInt(m[1]));}
+function formatFechaCorta(d){return d.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});}
+function udsACajas(u,c){if(!c||c<=1)return{texto:`${u} uds`,total:u};const cajas=Math.floor(u/c),sueltas=u%c;let t='';if(cajas>0&&sueltas>0)t=`${cajas} caja${cajas!==1?'s':''} + ${sueltas} sueltas`;else if(cajas>0)t=`${cajas} caja${cajas!==1?'s':''}`;else t=`${sueltas} sueltas`;return{texto:t,cajas,sueltas,total:u};}
+function cajasAUds(c,s,u){return(parseInt(c)||0)*(u||1)+(parseInt(s)||0);}
+function sumarRango(v,ini,fin){let total=0,dc=0,dt=0;const cur=new Date(ini);while(cur<=fin){const k=cur.toISOString().slice(0,10);if(v[k]){total+=v[k];dc++;}dt++;cur.setDate(cur.getDate()+1);}return{total,diasConVentas:dc,diasTotales:dt};}
+function getVentaDiaria(d){
+  const v=d.ventasPorDia||{},dias=Object.keys(v).sort(),hoy=new Date();
+  const finE=new Date(hoy.getFullYear()-1,hoy.getMonth(),hoy.getDate()),iniE=new Date(finE);iniE.setDate(iniE.getDate()-VENTANA_DIAS);
+  const e=sumarRango(v,iniE,finE);
+  if(e.diasConVentas>=MIN_DIAS)return{vd:e.total/e.diasTotales,modo:'estacional',periodoLabel:`${formatFechaCorta(iniE)} – ${formatFechaCorta(finE)}`,diasConVentas:e.diasConVentas};
+  if(dias.length>0){const u=new Date(dias[dias.length-1]),iu=new Date(u);iu.setDate(iu.getDate()-FALLBACK_DIAS);const r=sumarRango(v,iu,u);if(r.diasConVentas>=MIN_DIAS)return{vd:r.total/r.diasTotales,modo:'ultimos3meses',periodoLabel:`${formatFechaCorta(iu)} – ${formatFechaCorta(u)}`,diasConVentas:r.diasConVentas};}
+  const td=dias.length>1?Math.max(30,(new Date(dias[dias.length-1])-new Date(dias[0]))/86400000):365;
+  return{vd:d.total/td,modo:'anual',periodoLabel:'Período completo del archivo',diasConVentas:dias.length};
+}
+function modoIcon(m){return m==='estacional'?'📅':m==='ultimos3meses'?'📆':'📊';}
+function calcCantidad(vd,frec){return Math.ceil(vd*frec*MARGEN);}
+function calcROP(vd,lead){return Math.ceil(vd*lead);}
+document.addEventListener('input',function(e){
+  if(['inp-plead','inp-pfrecuencia'].includes(e.target.id)){
+    const lead=parseInt(document.getElementById('inp-plead').value)||0,frec=parseInt(document.getElementById('inp-pfrecuencia').value)||0,box=document.getElementById('formula-preview');
+    if(lead>0&&frec>0){const hoy=new Date(),fE=new Date(hoy.getFullYear()-1,hoy.getMonth(),hoy.getDate()),iE=new Date(fE);iE.setDate(iE.getDate()-VENTANA_DIAS);box.innerHTML=`📦 <strong>Cantidad</strong> = ventas/día × ${frec} días × +15%<br>⚠️ <strong>Avisar cuando</strong> stock &lt; ventas/día × ${lead} días<br>📅 Ref. ideal: ${formatFechaCorta(iE)} – ${formatFechaCorta(fE)}`;}
+    else box.textContent='Rellena los días para ver cómo se calculará el pedido.';
+  }
+});
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='s-home')renderHome();if(id==='s-config')renderCfgProvList();if(id==='s-ok')renderHistorial();}
+function switchTab(t){document.getElementById('tbtn-provs').classList.toggle('active',t==='provs');document.getElementById('tbtn-ventas').classList.toggle('active',t==='ventas');document.getElementById('tab-provs').style.display=t==='provs'?'block':'none';document.getElementById('tab-ventas').style.display=t==='ventas'?'block':'none';if(t==='ventas')renderVentasList();}
+function urgentes(p){return p.refs.filter(r=>{const f=buscarVentas(r.name);if(!f)return false;const{vd}=getVentaDiaria(f.data);const s=p.lastStock&&p.lastStock[norm(r.name)]!==undefined?p.lastStock[norm(r.name)]:null;if(s===null)return false;return s<=calcROP(vd,p.lead);}).length;}
+function getTemporada(){const m=new Date().getMonth();if(m>=2&&m<=4)return'🌸 Primavera';if(m>=5&&m<=7)return'☀️ Verano';if(m>=8&&m<=10)return'🍂 Otoño';return'❄️ Invierno';}
+function renderHome(){
+  const hoy=new Date(),fE=new Date(hoy.getFullYear()-1,hoy.getMonth(),hoy.getDate()),iE=new Date(fE);iE.setDate(iE.getDate()-VENTANA_DIAS);
+  document.getElementById('home-season').textContent=`${getTemporada()} · Ref. ideal: ${formatFechaCorta(iE)} – ${formatFechaCorta(fE)}`;
+  document.getElementById('home-sub').textContent=proveedores.length+' proveedor'+(proveedores.length!==1?'es':'')+' · '+Object.keys(ventasDB).length+' artículo'+(Object.keys(ventasDB).length!==1?'s':'')+' con ventas';
+  document.getElementById('home-noventas').style.display=Object.keys(ventasDB).length?'none':'block';
+  const list=document.getElementById('home-provs');
+  if(!proveedores.length){list.innerHTML='<div style="font-size:14px;color:#6e6e73;padding:.75rem 0;">Aún no hay proveedores. Pulsa "Configurar".</div>';return;}
+  list.innerHTML=proveedores.map((p,i)=>{
+    const c=COLORS[i%COLORS.length],urg=urgentes(p),sinV=p.refs.filter(r=>!buscarVentas(r.name)).length;
+    const badge=urg>0?`<span class="badge badge-danger">${urg} urgente${urg>1?'s':''}</span>`:'<span class="badge badge-ok">Todo en orden</span>';
+    const sinVB=sinV>0?`<span class="badge badge-gray">${sinV} sin ventas</span>`:'';
+    return`<div class="card prov-card" onclick="abrirProv(${i})">
+      <div class="prov-avatar" style="background:${c[0]};color:${c[1]};">${p.name.substring(0,2).toUpperCase()}</div>
+      <div style="flex:1;"><div style="font-size:15px;font-weight:600;">${p.name}</div>
+      <div style="font-size:12px;color:#6e6e73;margin-top:3px;">${p.refs.length} artículo${p.refs.length!==1?'s':''} · entrega ${p.lead}d · cada ${p.frecuencia}d ${badge}${sinVB}</div></div>
+      <div style="color:#aaa;font-size:22px;">›</div></div>`;
+  }).join('');
+}
+function renderCfgProvList(){
+  const list=document.getElementById('cfg-prov-list');
+  if(!proveedores.length){list.innerHTML='<div style="font-size:13px;color:#6e6e73;">Sin proveedores.</div>';return;}
+  list.innerHTML=proveedores.map((p,i)=>`<div class="card" style="cursor:default;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="flex:1;font-size:14px;font-weight:600;">${p.name}</div>
+      <span style="font-size:12px;color:#6e6e73;">Entrega: ${p.lead}d · cada ${p.frecuencia||'?'}d</span>
+      <button onclick="borrarProv(${i})" style="background:none;border:none;cursor:pointer;color:#6e6e73;font-size:18px;padding:0;">✕</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;">${p.refs.map(r=>{const ok=!!buscarVentas(r.name);const ct=r.udsCaja&&r.udsCaja>1?` · ${r.udsCaja}uds/caja`:'';return`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${ok?'#e8f5e0':'#fff3e0'};color:${ok?'#1b5e20':'#7a3800'};">${r.name}${ct}</span>`;}).join('')}</div>
+    </div>`).join('');
+}
+function addProv(){
+  const name=document.getElementById('inp-pname').value.trim(),lead=parseInt(document.getElementById('inp-plead').value)||0,frecuencia=parseInt(document.getElementById('inp-pfrecuencia').value)||0,refsRaw=document.getElementById('inp-prefs').value.trim();
+  if(!name){alert('Escribe el nombre del proveedor');return;}if(!lead){alert('Indica cuántos días tarda en servir');return;}if(!frecuencia){alert('Indica cada cuántos días viene');return;}if(!refsRaw){alert('Añade al menos un artículo');return;}
+  const refs=refsRaw.split('\n').map(r=>r.trim()).filter(Boolean).map(r=>{const p=r.split('|');return{name:p[0].trim(),udsCaja:parseInt(p[1])||1};});
+  proveedores.push({name,lead,frecuencia,refs,lastStock:{}});saveAll();
+  document.getElementById('inp-pname').value='';document.getElementById('inp-plead').value='';document.getElementById('inp-pfrecuencia').value='';document.getElementById('inp-prefs').value='';
+  renderCfgProvList();alert(`Proveedor "${name}" guardado.`);
+}
+function borrarProv(i){if(!confirm('¿Eliminar "'+proveedores[i].name+'"?'))return;proveedores.splice(i,1);saveAll();renderCfgProvList();}
+function handleFiles(input){
+  const files=Array.from(input.files);if(!files.length)return;
+  const log=document.getElementById('upload-log');log.innerHTML='';let done=0;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        const wb=XLSX.read(e.target.result,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        let artName=null,total=0,countRows=0;const vpd={};
+        for(let i=0;i<rows.length;i++){
+          const cell=String(rows[i][4]||'');
+          if(cell.includes('Art')&&cell.includes('culo')){const m=cell.match(/Art[íi]culo\s+(.+?)\.\s*Albaranes/s);if(m)artName=m[1].replace(/[\n\r]+/g,' ').replace(/\s+/g,' ').trim();}
+          if(i>=6){const f=rows[i][0],c=rows[i][9];if(f&&c!==''&&c!==null){const n=parseFloat(String(c).replace(',','.'));if(!isNaN(n)&&n>0){total+=n;countRows++;const d=parseDate(String(f));if(d){const k=d.toISOString().slice(0,10);vpd[k]=(vpd[k]||0)+n;}}}}
+        }
+        if(!artName){log.innerHTML+=`<div class="alert alert-warn">${file.name}: No se encontró el artículo.</div>`;}
+        else{
+          const kN=norm(artName),ek=Object.keys(ventasDB).find(k=>norm(k)===kN),sk=ek||artName;
+          ventasDB[sk]={total,rows:countRows,archivo:file.name,ventasPorDia:vpd};saveAll();
+          const{vd,modo,periodoLabel,diasConVentas}=getVentaDiaria(ventasDB[sk]);
+          const enlazado=proveedores.some(p=>p.refs.some(r=>norm(r.name)===kN));
+          const mt=modo==='estacional'?'✅ Estacional':modo==='ultimos3meses'?'📆 Últimos 3 meses':'📊 Período completo';
+          log.innerHTML+=`<div class="alert alert-ok"><strong>${artName}</strong><br>${Math.round(total)} uds · ${countRows} albaranes<br>${mt} · ${periodoLabel} · ${diasConVentas} días · <strong>${vd.toFixed(2)} uds/día</strong><br>${enlazado?'✓ Enlazado.':'⚠ Sin proveedor asignado aún.'}</div>`;
+          renderVentasList();renderHome();
+        }
+      }catch(err){log.innerHTML+=`<div class="alert alert-danger">${file.name}: Error. (${err.message})</div>`;}
+      done++;if(done===files.length)input.value='';
+    };reader.readAsArrayBuffer(file);
+  });
+}
+function renderVentasList(){
+  const list=document.getElementById('ventas-art-list'),keys=Object.keys(ventasDB);
+  if(!keys.length){list.innerHTML='<div style="font-size:13px;color:#6e6e73;">Sin ventas cargadas.</div>';return;}
+  list.innerHTML='<div class="card" style="cursor:default;">'+keys.map(k=>{
+    const{vd,modo,periodoLabel}=getVentaDiaria(ventasDB[k]),enlazado=proveedores.some(p=>p.refs.some(r=>norm(r.name)===norm(k)));
+    const kE=k.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return`<div class="art-item"><div class="${enlazado?'dot-verde':'dot-naranja'}"></div>
+      <div style="flex:1;"><div style="color:#1d1d1f;font-size:13px;">${k}</div>
+      <div style="font-size:11px;color:#6e6e73;margin-top:2px;">${modoIcon(modo)} ${vd.toFixed(2)}/día · ${periodoLabel} · ${enlazado?'enlazado':'sin proveedor'}</div></div>
+      <button onclick="if(confirm('¿Borrar?')){delete ventasDB['${kE}'];saveAll();renderVentasList();renderHome();}" style="background:none;border:none;cursor:pointer;color:#aaa;font-size:16px;padding:0 4px;">✕</button></div>`;
+  }).join('')+'</div>';
+}
+function abrirProv(i){
+  currentProv=i;const p=proveedores[i];
+  document.getElementById('stock-pname').textContent=p.name;
+  document.getElementById('stock-psub').textContent=p.refs.length+' artículos';
+  document.getElementById('stock-formula').innerHTML=`📦 <strong>Cantidad:</strong> ventas/día × ${p.frecuencia} días × +15%<br>⚠️ <strong>Avisar cuando:</strong> stock &lt; ventas/día × ${p.lead} días<br>📫 <strong>Resultado:</strong> en unidades y cajas`;
+  if(!p.lastStock)p.lastStock={};
+  const form=document.getElementById('stock-form');
+  form.innerHTML=p.refs.map((r,ri)=>{
+    const found=buscarVentas(r.name),lastUds=p.lastStock[norm(r.name)]!==undefined?p.lastStock[norm(r.name)]:0;
+    const lastCajas=r.udsCaja>1?Math.floor(lastUds/r.udsCaja):0,lastSueltas=r.udsCaja>1?lastUds%r.udsCaja:lastUds;
+    let vTag='';
+    if(found){const{vd,modo,periodoLabel}=getVentaDiaria(found.data);const ped=calcCantidad(vd,p.frecuencia),rop=calcROP(vd,p.lead),pc=udsACajas(ped,r.udsCaja);
+      vTag=`<div style="font-size:11px;color:#6e6e73;margin-top:3px;">${modoIcon(modo)} ${vd.toFixed(2)}/día · estimado: <strong>${pc.texto}</strong> (${ped} uds) · avisar &lt;${rop} uds</div><div style="font-size:10px;color:#aaa;margin-top:1px;">${periodoLabel}</div>`;}
+    else vTag=`<div style="font-size:11px;color:#e65100;margin-top:3px;">sin ventas cargadas</div>`;
+    const ci=r.udsCaja>1?`<div class="stock-block"><input type="number" id="cajas${ri}" placeholder="0" min="0" value="${lastCajas}"><label>cajas</label></div><span style="color:#aaa;">+</span><div class="stock-block"><input type="number" id="sueltas${ri}" placeholder="0" min="0" value="${lastSueltas}"><label>sueltas</label></div><span style="font-size:11px;color:#6e6e73;">(${r.udsCaja} uds/caja)</span>`:`<div class="stock-block"><input type="number" id="sueltas${ri}" placeholder="0" min="0" value="${lastSueltas}"><label>uds</label></div>`;
+    return`<div class="ref-row"><div style="font-size:13px;font-weight:600;color:#1d1d1f;">${r.name}</div>${vTag}<div class="stock-inputs">${ci}</div></div>`;
+  }).join('');
+  go('s-stock');
+}
+function calcular(){
+  const p=proveedores[currentProv];if(!p.lastStock)p.lastStock={};
+  const filas=p.refs.map((r,ri)=>{
+    const cajas=r.udsCaja>1?(parseInt(document.getElementById('cajas'+ri)?.value)||0):0;
+    const sueltas=parseInt(document.getElementById('sueltas'+ri)?.value)||0;
+    const stock=cajasAUds(cajas,sueltas,r.udsCaja);p.lastStock[norm(r.name)]=stock;
+    const found=buscarVentas(r.name);
+    if(!found)return{ref:r.name,udsCaja:r.udsCaja,stock,pedir:0,sinDatos:true,rop:0,vd:0,urgente:false,modo:'',periodoLabel:'',diasCubiertos:0};
+    const{vd,modo,periodoLabel}=getVentaDiaria(found.data),rop=calcROP(vd,p.lead),pedir=stock<=rop?calcCantidad(vd,p.frecuencia):0;
+    return{ref:r.name,udsCaja:r.udsCaja,stock,pedir,sinDatos:false,rop:Math.round(rop),vd,urgente:stock<=rop,modo,periodoLabel,diasCubiertos:vd>0?Math.round(pedir/vd):0};
+  });
+  saveAll();currentPedidoData={prov:p.name,lead:p.lead,frecuencia:p.frecuencia,filas,fecha:new Date().toLocaleDateString('es-ES')};
+  renderPedido();go('s-pedido');
+}
+function renderPedido(){
+  document.getElementById('pedido-pname').textContent=currentPedidoData.prov;
+  const filas=currentPedidoData.filas,aPedir=filas.filter(f=>f.pedir>0),okList=filas.filter(f=>!f.pedir&&!f.sinDatos),sinD=filas.filter(f=>f.sinDatos);
+  let html='';
+  if(aPedir.length){
+    html+=`<div class="pedido-header"><div style="font-size:12px;color:#0d47a1;margin-bottom:4px;">Artículos a pedir hoy</div><div style="font-size:28px;font-weight:700;color:#0a2e6e;">${aPedir.length} referencia${aPedir.length!==1?'s':''}</div><div style="font-size:12px;color:#1565c0;margin-top:4px;">Cada ${currentPedidoData.frecuencia}d · Entrega ${currentPedidoData.lead}d · +15% margen</div></div>`;
+    html+='<div class="card" style="cursor:default;">';
+    aPedir.forEach(f=>{
+      const pc=udsACajas(f.pedir,f.udsCaja),sc=udsACajas(f.stock,f.udsCaja),rc=udsACajas(f.rop,f.udsCaja);
+      html+=`<div class="calc-row"><div style="flex:1;"><div style="font-weight:600;font-size:14px;">${f.ref}</div>
+        <div style="font-size:11px;color:#6e6e73;margin-top:3px;">Stock: ${sc.texto} · Mínimo: ${rc.texto} · ${modoIcon(f.modo)} ${f.vd.toFixed(2)}/día</div>
+        <div style="font-size:10px;color:#aaa;margin-top:1px;">${f.periodoLabel}</div></div>
+        <div style="text-align:right;margin-left:12px;flex-shrink:0;"><div style="font-size:20px;font-weight:700;color:#1565c0;">${pc.texto}</div>
+        <div style="font-size:12px;color:#6e6e73;">${f.pedir} uds · ~${f.diasCubiertos} días</div></div></div>`;
+    });html+='</div>';
+  } else if(!sinD.length) html+='<div class="alert alert-ok"><strong>No hace falta pedir nada hoy.</strong> Stock suficiente.</div>';
+  if(okList.length){
+    html+='<div class="section-label">Sin necesidad de pedir</div><div class="card" style="cursor:default;">';
+    okList.forEach(f=>{const sc=udsACajas(f.stock,f.udsCaja),m=f.vd>0?Math.round((f.stock-f.rop)/f.vd):'-';html+=`<div class="calc-row"><div style="color:#6e6e73;">${f.ref}</div><div style="color:#2e7d32;text-align:right;">${sc.texto}<br><span style="font-size:11px;">${m} días margen</span></div></div>`;});
+    html+='</div>';
+  }
+  if(sinD.length)html+=`<div class="alert alert-warn"><strong>Sin ventas cargadas (${sinD.length}):</strong><br>${sinD.map(f=>'· '+f.ref).join('<br>')}</div>`;
+  document.getElementById('pedido-body').innerHTML=html;
+}
+function confirmar(){
+  const aP=currentPedidoData.filas.filter(f=>f.pedir>0);
+  historialDB.unshift({...currentPedidoData,ts:new Date().toLocaleString('es-ES')});if(historialDB.length>30)historialDB.pop();saveAll();
+  document.getElementById('ok-txt').textContent=aP.length>0?'Pedido a '+currentPedidoData.prov+': '+aP.length+' artículo'+(aP.length!==1?'s':'')+' · '+currentPedidoData.fecha:'Stock revisado. Sin pedido necesario.';
+  go('s-ok');
+}
+function renderHistorial(){
+  const list=document.getElementById('historial');
+  if(!historialDB.length){list.innerHTML='<div style="font-size:13px;color:#6e6e73;padding:.5rem 0;">Sin pedidos registrados aún.</div>';return;}
+  list.innerHTML=historialDB.slice(0,10).map(h=>{const n=h.filas?h.filas.filter(f=>f.pedir>0).length:0;return`<div class="card" style="cursor:default;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:14px;font-weight:600;">${h.prov}</div><div style="font-size:11px;color:#6e6e73;">${h.ts}</div></div><div style="font-size:12px;color:#6e6e73;margin-top:3px;">${n>0?n+' artículo'+(n!==1?'s':'')+' pedidos':'Sin pedido'} · cada ${h.frecuencia}d · entrega ${h.lead}d</div></div>`;}).join('');
+}
+renderHome();
+</script>
+</body>
+</html>
