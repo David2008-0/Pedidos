@@ -127,6 +127,49 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1d1d1f;}
   </div>
 </div>
 
+<div class="screen" id="s-edit-prov">
+  <div class="topbar">
+    <button class="back-btn" onclick="go('s-config');switchTab('provs')">&#8592;</button>
+    <div><div class="topbar-title" id="edit-prov-title">Editar proveedor</div></div>
+  </div>
+  <div class="card" style="cursor:default;">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">Nombre del proveedor</label>
+      <input type="text" id="edit-pname">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div>
+        <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">Días que tarda en servir</label>
+        <input type="number" id="edit-plead" min="1">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">¿Cada cuántos días viene?</label>
+        <input type="number" id="edit-pfrecuencia" min="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Artículos de este proveedor</div>
+  <div class="card" style="cursor:default;" id="edit-refs-list"></div>
+
+  <div class="card" style="cursor:default;">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Añadir artículo nuevo</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:8px;">
+      <div>
+        <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">Nombre (igual que en el Excel)</label>
+        <input type="text" id="edit-new-ref" placeholder="NOMBRE DEL ARTÍCULO">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#6e6e73;display:block;margin-bottom:4px;">Uds por caja</label>
+        <input type="number" id="edit-new-udscaja" placeholder="1" min="1">
+      </div>
+    </div>
+    <button class="btn-sec" style="margin-top:0;" onclick="editAddRef()">+ Añadir artículo</button>
+  </div>
+
+  <button class="btn-main" onclick="guardarEdicion()">Guardar cambios</button>
+</div>
+
 <div class="screen" id="s-stock">
   <div class="topbar">
     <button class="back-btn" onclick="go('s-home')">&#8592;</button>
@@ -226,10 +269,77 @@ function renderCfgProvList(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
       <div style="flex:1;font-size:14px;font-weight:600;">${p.name}</div>
       <span style="font-size:12px;color:#6e6e73;">Entrega: ${p.lead}d · cada ${p.frecuencia||'?'}d</span>
+      <button onclick="abrirEdicion(${i})" style="background:#e3f2fd;border:none;cursor:pointer;color:#0d47a1;font-size:12px;padding:4px 10px;border-radius:8px;font-weight:500;">Editar</button>
       <button onclick="borrarProv(${i})" style="background:none;border:none;cursor:pointer;color:#6e6e73;font-size:18px;padding:0;">✕</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;">${p.refs.map(r=>{const ok=!!buscarVentas(r.name);const ct=r.udsCaja&&r.udsCaja>1?` · ${r.udsCaja}uds/caja`:'';return`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${ok?'#e8f5e0':'#fff3e0'};color:${ok?'#1b5e20':'#7a3800'};">${r.name}${ct}</span>`;}).join('')}</div>
     </div>`).join('');
+}
+
+let editProvIdx=null;
+let editRefs=[];
+
+function abrirEdicion(i){
+  editProvIdx=i;
+  const p=proveedores[i];
+  editRefs=p.refs.map(r=>({...r}));
+  document.getElementById('edit-prov-title').textContent='Editar: '+p.name;
+  document.getElementById('edit-pname').value=p.name;
+  document.getElementById('edit-plead').value=p.lead;
+  document.getElementById('edit-pfrecuencia').value=p.frecuencia;
+  document.getElementById('edit-new-ref').value='';
+  document.getElementById('edit-new-udscaja').value='';
+  renderEditRefs();
+  go('s-edit-prov');
+}
+
+function renderEditRefs(){
+  const list=document.getElementById('edit-refs-list');
+  if(!editRefs.length){list.innerHTML='<div style="font-size:13px;color:#6e6e73;">Sin artículos.</div>';return;}
+  list.innerHTML=editRefs.map((r,i)=>{
+    const ok=!!buscarVentas(r.name);
+    const ct=r.udsCaja>1?` · ${r.udsCaja} uds/caja`:'';
+    return`<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f0f0f5;">
+      <div style="flex:1;">
+        <span style="font-size:13px;font-weight:500;">${r.name}</span>
+        <span style="font-size:11px;color:#6e6e73;">${ct}</span>
+        <span style="font-size:11px;margin-left:6px;padding:1px 6px;border-radius:10px;background:${ok?'#e8f5e0':'#fff3e0'};color:${ok?'#1b5e20':'#7a3800'};">${ok?'✓ con ventas':'sin ventas'}</span>
+      </div>
+      <button onclick="editRemoveRef(${i})" style="background:none;border:none;cursor:pointer;color:#b71c1c;font-size:16px;padding:0 4px;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function editAddRef(){
+  const name=document.getElementById('edit-new-ref').value.trim();
+  const udsCaja=parseInt(document.getElementById('edit-new-udscaja').value)||1;
+  if(!name){alert('Escribe el nombre del artículo');return;}
+  if(editRefs.find(r=>norm(r.name)===norm(name))){alert('Ese artículo ya está en la lista');return;}
+  editRefs.push({name,udsCaja});
+  document.getElementById('edit-new-ref').value='';
+  document.getElementById('edit-new-udscaja').value='';
+  renderEditRefs();
+}
+
+function editRemoveRef(i){
+  if(!confirm('¿Quitar "'+editRefs[i].name+'" de este proveedor?'))return;
+  editRefs.splice(i,1);
+  renderEditRefs();
+}
+
+function guardarEdicion(){
+  const name=document.getElementById('edit-pname').value.trim();
+  const lead=parseInt(document.getElementById('edit-plead').value)||0;
+  const frecuencia=parseInt(document.getElementById('edit-pfrecuencia').value)||0;
+  if(!name){alert('Escribe el nombre del proveedor');return;}
+  if(!lead){alert('Indica los días de entrega');return;}
+  if(!frecuencia){alert('Indica cada cuántos días viene');return;}
+  if(!editRefs.length){alert('Añade al menos un artículo');return;}
+  proveedores[editProvIdx]={...proveedores[editProvIdx],name,lead,frecuencia,refs:editRefs};
+  saveAll();
+  go('s-config');
+  switchTab('provs');
+  alert('Proveedor actualizado correctamente.');
 }
 function addProv(){
   const name=document.getElementById('inp-pname').value.trim(),lead=parseInt(document.getElementById('inp-plead').value)||0,frecuencia=parseInt(document.getElementById('inp-pfrecuencia').value)||0,refsRaw=document.getElementById('inp-prefs').value.trim();
